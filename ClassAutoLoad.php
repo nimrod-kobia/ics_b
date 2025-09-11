@@ -1,6 +1,9 @@
 <?php
 
-require 'Plugins/PHPMailer/vendor/autoload.php';
+
+require __DIR__ . '/vendor/autoload.php';
+
+
 require 'conf.php';
 $directories = ['Layouts', 'Forms', 'Global'];
 
