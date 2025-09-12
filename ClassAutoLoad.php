@@ -1,22 +1,17 @@
 <?php
+spl_autoload_register(function ($class) {
+    $prefix = 'App\\';
+    $base_dir = __DIR__ . '/App/';
 
+    $len = strlen($prefix);
+    if (strncmp($prefix, $class, $len) !== 0) {
+        return;
+    }
 
-require __DIR__ . '/vendor/autoload.php';
+    $relative_class = substr($class, $len);
+    $file = $base_dir . $relative_class . '.php';
 
-
-require 'conf.php';
-$directories = ['Layouts', 'Forms', 'Global'];
-
-spl_autoload_register(function ($class_name) use ($directories) {
-    foreach ($directories as $directory) {
-        $file = __DIR__ . '/' . $directory . '/' . $class_name . '.php';
-        if (file_exists($file)) {
-            require_once $file;
-            return;
-        }
+    if (file_exists($file)) {
+        require $file;
     }
 });
-// Create an instance of the class
-$ObjSendMail = new SendMail();
-$ObjLayout = new Layouts();
-$ObjForm = new Forms();

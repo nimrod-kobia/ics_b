@@ -1,26 +1,25 @@
 <?php
-// Site timezone
-$conf['site_timezone'] = 'Africa/Nairobi';
+$conf = [
+    // Database settings
+    'db_host' => '127.0.0.1',
+    'db_name' => 'ics_b_users',
+    'db_user' => 'icsbuser',       // or 'root'
+    'db_pass' => 'StrongPassword123',
 
-// Site information
-$conf['site_name'] = 'ICS B Academy';
-$conf['site_url'] = 'http://localhost/tol';
-$conf['admin_email'] = 'admin@icsbacademy.com';
+    // SMTP settings
+    'smtp_host' => 'smtp.gmail.com',       // Gmail SMTP server
+    'smtp_port' => 587,                    // TLS port
+    'smtp_user' => 'nimrodkobia066@gmail.com', // your Gmail
+    'smtp_pass' => 'yfon emhj jatk cmnh'       // your Gmail app password
+];
 
-// Site language
-$conf['site_lang'] = 'en';
-
-// Database configuration
-$conf['db_type'] = 'pdo';
-$conf['db_host'] = 'localhost';
-$conf['db_user'] = 'root';
-$conf['db_pass'] = '';
-$conf['db_name'] = 'tol';
-
-// Email configuration
-$conf['mail_type'] = 'smtp'; // Options: 'smtp' or 'mail'
-$conf['smtp_host'] = 'smtp.gmail.com';
-$conf['smtp_user'] = 'nimrodkobia066@gmail.com';
-$conf['smtp_pass'] = 'yfon emhj jatk cmnh';
-$conf['smtp_port'] = 465;
-$conf['smtp_secure'] = 'ssl';
+try {
+    $pdo = new \PDO(
+        "mysql:host={$conf['db_host']};dbname={$conf['db_name']};charset=utf8",
+        $conf['db_user'],
+        $conf['db_pass']
+    );
+    $pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
+} catch (\PDOException $e) {
+    die("Database connection failed: " . $e->getMessage());
+}
