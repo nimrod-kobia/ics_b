@@ -40,7 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <p>Hello {$username},</p>
                 <p>You requested an account on ICS 2.2.</p>
                 <p>To complete your registration, 
-                   <a href='https://yourdomain.com/verify.php?user=" . urlencode($username) . "'>Click Here</a>.
+                 <a href='http://localhost/ics_b-1/signup.php?user=" . urlencode($username) . "'>Verify Your Account</a>
                 </p>
                 <br>
                 Regards,<br>
