@@ -1,23 +1,26 @@
 <?php
-
 use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\SMTP;
 use PHPMailer\PHPMailer\Exception;
 
-require __DIR__ . '/../vendor/autoload.php';
-
-class Sendmail {
-
+class SendMail {
     public function Send_Mail(array $conf, array $mailCnt): bool {
+        // Load Composer's autoloader (relative to project root)
+        require_once __DIR__ . '/../vendor/autoload.php';
+
         $mail = new PHPMailer(true);
 
         try {
             // Server settings
+            $mail->SMTPDebug = SMTP::DEBUG_OFF;
             $mail->isSMTP();
             $mail->Host       = $conf['smtp_host'];
             $mail->SMTPAuth   = true;
             $mail->Username   = $conf['smtp_user'];
             $mail->Password   = $conf['smtp_pass'];
-            $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+            $mail->SMTPSecure = ($conf['smtp_port'] == 465)
+                                ? PHPMailer::ENCRYPTION_SMTPS
+                                : PHPMailer::ENCRYPTION_STARTTLS;
             $mail->Port       = $conf['smtp_port'];
 
             // Recipients
@@ -29,7 +32,8 @@ class Sendmail {
             $mail->Subject = $mailCnt['subject'];
             $mail->Body    = $mailCnt['body'];
 
-            return $mail->send();
+            $mail->send();
+            return true;
         } catch (Exception $e) {
             error_log("Mailer Error: {$mail->ErrorInfo}");
             return false;

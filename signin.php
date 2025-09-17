@@ -1,14 +1,14 @@
 <?php
-// Enable error reporting for debugging
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
+require_once __DIR__ . '/ClassAutoLoad.php';
 
-// Autoload classes
-require 'ClassAutoLoad.php';
+$showForm = 'signin';
+require_once __DIR__ . '/Proc/auth.php';
 
-// Render page sections
 $ObjLayout->header($conf);
 $ObjLayout->navbar($conf);
 $ObjLayout->banner($conf);
-$ObjLayout->form_content($conf, $ObjForm); // Display the sign-in form
-$ObjLayout->footer($conf); // End of signin.php
+
+$ObjFncs->showForm = 'signin';
+
+$ObjLayout->form_content($conf, $ObjForm, $ObjFncs);
+$ObjLayout->footer($conf);

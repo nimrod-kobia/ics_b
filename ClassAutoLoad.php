@@ -1,17 +1,18 @@
 <?php
-spl_autoload_register(function ($class) {
-    $prefix = 'App\\';
-    $base_dir = __DIR__ . '/App/';
+require 'conf.php';
 
-    $len = strlen($prefix);
-    if (strncmp($prefix, $class, $len) !== 0) {
-        return;
-    }
+$directories = ['Layouts', 'Forms', 'Global', 'Proc'];
 
-    $relative_class = substr($class, $len);
-    $file = $base_dir . $relative_class . '.php';
-
-    if (file_exists($file)) {
-        require $file;
+spl_autoload_register(function ($class) use ($directories) {
+    foreach ($directories as $dir) {
+        $file = __DIR__ . '/' . $dir . '/' . $class . '.php';
+        if (file_exists($file)) {
+            require $file;
+            return;
+        }
     }
 });
+
+// Use PDO instead of mysqli
+$ObjLayout = new Layouts();
+$ObjForm   = new Forms($pdo);

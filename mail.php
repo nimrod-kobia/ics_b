@@ -15,17 +15,29 @@ $ObjLayout->header($conf);
 $ObjLayout->navbar($conf);
 $ObjLayout->banner($conf);
 
-// Show signup form
-$form = new Forms();
-$form->signup();
+// Show email form
+?>
+<h2>Send Verification Email</h2>
+<form action="" method="post" autocomplete="off">
+  <div class="mb-3">
+    <label for="fullname" class="form-label">Fullname</label>
+    <input type="text" class="form-control" id="fullname" name="fullname" maxlength="50" placeholder="Enter your fullname" required>
+  </div>
+  <div class="mb-3">
+    <label for="email" class="form-label">Email address</label>
+    <input type="email" class="form-control" id="email" name="email" required>
+  </div>
+  <button type="submit" class="btn btn-primary" name="mail_submit">Send Verification Email</button>
+</form>
+<?php
 
 // Process form submission
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $username = trim($_POST['username'] ?? '');
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mail_submit'])) {
+    $fullname = trim($_POST['fullname'] ?? '');
     $email    = trim($_POST['email'] ?? '');
 
-    if ($username === '' || $email === '') {
-        echo "<p style='color:red'>Please provide both username and email.</p>";
+    if ($fullname === '' || $email === '') {
+        echo "<p style='color:red'>Please provide both fullname and email.</p>";
     } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         echo "<p style='color:red'>Please provide a valid email address.</p>";
     } else {
@@ -33,14 +45,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $mailCnt = [
             'name_from' => 'ICS 2.2',
             'mail_from' => $conf['smtp_user'],
-            'name_to'   => $username,
+            'name_to'   => $fullname,
             'mail_to'   => $email,
             'subject'   => 'Welcome to ICS 2.2! Account Verification',
             'body'      => "
-                <p>Hello {$username},</p>
+                <p>Hello {$fullname},</p>
                 <p>You requested an account on ICS 2.2.</p>
                 <p>To complete your registration, 
-                 <a href='http://localhost/ics_b-1/signup.php?user=" . urlencode($username) . "'>Verify Your Account</a>
+                 <a href='http://localhost/ics_b-1/signup.php?user=" . urlencode($fullname) . "'>Verify Your Account</a>
                 </p>
                 <br>
                 Regards,<br>
@@ -50,7 +62,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ];
 
         // Send email
-        $ObjSendMail = new Sendmail();
+        $ObjSendMail = new SendMail();
 
         if ($ObjSendMail->Send_Mail($conf, $mailCnt)) {
             echo "<p style='color:green'>Verification email sent successfully to <strong>{$email}</strong>.</p>";
