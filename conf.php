@@ -1,6 +1,8 @@
 <?php
+declare(strict_types=1);
+
 // Session
-if (session_status() == PHP_SESSION_NONE) {
+if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
@@ -16,16 +18,16 @@ $conf = [
     'db_type' => 'pdo',
     'db_host' => '127.0.0.1',
     'db_name' => 'ics_b_users',
-    'db_user' => 'icsbuser',              // or 'root'
-    'db_pass' => 'StrongPassword123',
+    'db_user' => getenv('DB_USER') ?: 'icsbuser',  // fallback if env not set
+    'db_pass' => getenv('DB_PASS') ?: 'StrongPassword123',
 
     // Email / SMTP Settings
-    'mail_type'   => 'smtp',             // 'smtp' or 'mail'
+    'mail_type'   => 'smtp',  // 'smtp' or 'mail'
     'smtp_host'   => 'smtp.gmail.com',
-    'smtp_port'   => 587,                // use 465 for SSL, 587 for TLS
-    'smtp_user'   => 'nimrodkobia066@gmail.com',
-    'smtp_pass'   => 'yfon emhj jatk cmnh', // Gmail app password
-    'smtp_secure' => 'tls',              // 'ssl' or 'tls'
+    'smtp_port'   => 587,     // 465 for SSL, 587 for TLS
+    'smtp_user'   => getenv('SMTP_USER') ?: 'nimrodkobia066@gmail.com',
+    'smtp_pass'   => getenv('SMTP_PASS') ?: 'app_password_here',
+    'smtp_secure' => 'tls',   // 'ssl' or 'tls'
 
     // App Rules
     'min_password_length' => 8,
@@ -39,17 +41,30 @@ $conf = [
     ]
 ];
 
+// Language strings
+$lang = [
+    'signup_success' => 'Your account has been created successfully.',
+    'signup_error'   => 'There was a problem creating your account.',
+    'signin_error'   => 'Invalid email or password.',
+    'required_field' => 'Please fill out all required fields.'
+];
+
 // Timezone
 date_default_timezone_set($conf['site_timezone']);
-
 // Database Connection
 try {
-    $pdo = new \PDO(
-        "mysql:host={$conf['db_host']};dbname={$conf['db_name']};charset=utf8",
-        $conf['db_user'],
-        $conf['db_pass']
+    $dsn = sprintf(
+        "mysql:host=%s;dbname=%s;charset=utf8mb4",
+        $conf['db_host'],
+        $conf['db_name']
     );
-    $pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
+
+    $pdo = new \PDO($dsn, $conf['db_user'], $conf['db_pass'], [
+        \PDO::ATTR_ERRMODE            => \PDO::ERRMODE_EXCEPTION,
+        \PDO::ATTR_DEFAULT_FETCH_MODE => \PDO::FETCH_ASSOC,
+        \PDO::ATTR_EMULATE_PREPARES   => false, // safer queries
+    ]);
 } catch (\PDOException $e) {
-    die("Database connection failed: " . $e->getMessage());
+    // In production: log error, don't display sensitive info
+    die("Database connection failed. Please try again later.");
 }

@@ -21,7 +21,7 @@ class Layouts {
         ?>
         <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
             <div class="container-fluid">
-                <a class="navbar-brand" href="#"><?= htmlspecialchars($conf['site_name'], ENT_QUOTES) ?></a>
+                <a class="navbar-brand" href="index.php"><?= htmlspecialchars($conf['site_name'], ENT_QUOTES) ?></a>
                 <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                     <span class="navbar-toggler-icon"></span>
                 </button>
@@ -71,26 +71,18 @@ class Layouts {
         <?php
     }
 
-    // Form content: dynamically display signin/signup forms
+    // Form content: show signup or signin depending on $ObjFncs->showForm
     public function form_content(array $conf, $ObjForm, $ObjFncs): void {
-        // Determine which form to show
-        // Priority: $ObjFncs->showForm > $GLOBALS['showForm'] > GET parameter > default 'signin'
-        $formType = $ObjFncs->showForm 
-                    ?? ($GLOBALS['showForm'] ?? ($_GET['form'] ?? 'signin'));
-
         echo '<div class="container my-5">';
-        if ($formType === 'signup') {
-            $ObjForm->signup(
-                $conf,
-                $ObjFncs->signup_errors ?? [],
-                $ObjFncs->signup_msg ?? ''
-            );
+
+        if ($ObjFncs->showForm === 'signup') {
+            $ObjForm->signup($conf);
+        } elseif ($ObjFncs->showForm === 'signin') {
+            $ObjForm->signin($conf);
         } else {
-            $ObjForm->signin(
-                $conf,
-                $ObjFncs->signin_msg ?? ''
-            );
+            echo "<div class='alert alert-danger'>Form type not specified.</div>";
         }
+
         echo '</div>';
     }
 }

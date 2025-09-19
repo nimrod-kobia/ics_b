@@ -3,10 +3,8 @@ declare(strict_types=1);
 error_reporting(E_ALL);
 ini_set('display_errors', '1');
 
-// Load DB config and autoload classes
 require_once __DIR__ . '/conf.php';
 require_once __DIR__ . '/ClassAutoLoad.php';
-require_once __DIR__ . '/Layouts/Layouts.php';
 
 // Initialize Layouts
 $ObjLayout = new Layouts();
@@ -16,6 +14,8 @@ $bannerConf = $conf;
 $bannerConf['banner_title']    = 'Registered Users';
 $bannerConf['banner_subtitle'] = 'Manage all users who have signed up for ICS 2.2';
 
+$msg = "";
+
 // Handle Add User
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
     $name  = trim($_POST['name']);
@@ -23,17 +23,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
     $pass  = password_hash($_POST['password'], PASSWORD_BCRYPT);
 
     try {
-        $stmt = $pdo->prepare("INSERT INTO users (name, email, password, created_at) VALUES (?, ?, ?, NOW())");
-        $stmt->execute([$name, $email, $pass]);
-        $msg = "<div class='alert alert-success'>User added successfully!</div>";
+        // Check if email already exists
+        $stmt = $pdo->prepare("SELECT id FROM users WHERE email = ?");
+        $stmt->execute([$email]);
+
+        if ($stmt->fetch()) {
+            $msg = "<div class='alert alert-warning'>Email already registered!</div>";
+        } else {
+            $stmt = $pdo->prepare(
+                "INSERT INTO users (name, email, password, created_at, verified) 
+                 VALUES (?, ?, ?, NOW(), 1)" //  auto-verified
+            );
+            $stmt->execute([$name, $email, $pass]);
+            $msg = "<div class='alert alert-success'>User added successfully!</div>";
+        }
     } catch (PDOException $e) {
         $msg = "<div class='alert alert-danger'>Error adding user: " . htmlspecialchars($e->getMessage()) . "</div>";
     }
 }
 
-// Handle Delete User
-if (isset($_GET['delete'])) {
-    $id = (int) $_GET['delete'];
+// Handle Delete User (via POST only)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_user'])) {
+    $id = (int) $_POST['delete_user'];
     try {
         $stmt = $pdo->prepare("DELETE FROM users WHERE id = ?");
         $stmt->execute([$id]);
@@ -100,11 +111,12 @@ $ObjLayout->banner($bannerConf);
                                 Joined: <?= htmlspecialchars($user['created_at']) ?>
                             </span>
                             <div class="mt-3">
-                                <a href="?delete=<?= $user['id'] ?>" 
-                                   class="btn btn-sm btn-danger"
-                                   onclick="return confirm('Are you sure you want to delete this user?');">
-                                   <i class="bi bi-trash"></i> Delete
-                                </a>
+                                <form method="post" onsubmit="return confirm('Are you sure you want to delete this user?');">
+                                    <input type="hidden" name="delete_user" value="<?= $user['id'] ?>">
+                                    <button type="submit" class="btn btn-sm btn-danger">
+                                        <i class="bi bi-trash"></i> Delete
+                                    </button>
+                                </form>
                             </div>
                         </div>
                     </div>
@@ -116,4 +128,3 @@ $ObjLayout->banner($bannerConf);
 
 <?php
 $ObjLayout->footer($conf);
-?>

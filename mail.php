@@ -7,16 +7,15 @@ require 'conf.php';
 require 'ClassAutoLoad.php';
 require_once __DIR__ . '/Layouts/Layouts.php';
 require_once __DIR__ . '/Forms/Forms.php';
-require_once __DIR__ . '/Global/Sendmail.php';
+require_once __DIR__ . '/Global/SendMail.php';
 
 // Create Layout object
 $ObjLayout = new Layouts();
 $ObjLayout->header($conf);
 $ObjLayout->navbar($conf);
 $ObjLayout->banner($conf);
-
-// Show email form
 ?>
+
 <h2>Send Verification Email</h2>
 <form action="" method="post" autocomplete="off">
   <div class="mb-3">
@@ -29,8 +28,8 @@ $ObjLayout->banner($conf);
   </div>
   <button type="submit" class="btn btn-primary" name="mail_submit">Send Verification Email</button>
 </form>
-<?php
 
+<?php
 // Process form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mail_submit'])) {
     $fullname = trim($_POST['fullname'] ?? '');
@@ -64,7 +63,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mail_submit'])) {
         // Send email
         $ObjSendMail = new SendMail();
 
-        if ($ObjSendMail->Send_Mail($conf, $mailCnt)) {
+        if ($ObjSendMail->send($conf, $mailCnt)) {
             echo "<p style='color:green'>Verification email sent successfully to <strong>{$email}</strong>.</p>";
         } else {
             echo "<p style='color:red'>Failed to send verification email. Please try again.</p>";

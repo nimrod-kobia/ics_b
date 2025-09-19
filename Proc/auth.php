@@ -1,106 +1,127 @@
 <?php
 declare(strict_types=1);
-error_reporting(E_ALL);
-ini_set('display_errors', '1');
 
-// Start session only if not already started
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
+class Auth {
+    private \PDO $db;
+    private array $conf;
 
-// Include necessary files
-require_once __DIR__ . '/../Forms/Forms.php';
-require_once __DIR__ . '/../Global/Sendmail.php';
+    public function __construct(\PDO $db, array $conf = []) {
+        $this->db   = $db;
+        $this->conf = $conf;
+    }
 
-// Ensure $ObjForm, $ObjFncs exist (from ClassAutoLoad.php)
-if (!isset($ObjForm)) $ObjForm = new Forms($pdo);
-if (!isset($ObjFncs)) $ObjFncs = new stdClass();
+    /**
+     * Handle user signup
+     */
+    public function signup(array $conf, GlobalFunctions $fn, SendMail $mailer): void {
+        $fullname = $fn->sanitizeInput($_POST['fullname'] ?? '');
+        $email    = $fn->sanitizeInput($_POST['email'] ?? '');
+        $password = $_POST['password'] ?? '';
 
-// Determine which form is active
-$formType = $showForm ?? ($_GET['form'] ?? 'signin');
-
-### ------------------- SIGN IN -------------------
-if ($formType === 'signin' && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['signin_submit'])) {
-    $email    = trim($_POST['email'] ?? '');
-    $password = $_POST['password'] ?? '';
-
-    $ObjFncs->signin_msg = '';
-
-    if ($email === '' || $password === '') {
-        $ObjFncs->signin_msg = "Please fill in all fields.";
-    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        $ObjFncs->signin_msg = "Please provide a valid email address.";
-    } else {
-        $stmt = $pdo->prepare("SELECT id, password FROM users WHERE email = ?");
-        $stmt->execute([$email]);
-        $user = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        if ($user && password_verify($password, $user['password'])) {
-            $_SESSION['user_id'] = $user['id'];
-            $ObjFncs->signin_msg = "Sign in successful!";
-        } else {
-            $ObjFncs->signin_msg = "Invalid email or password.";
+        if (empty($fullname) || empty($email) || empty($password)) {
+            echo "<p style='color:red'>All fields are required.</p>";
+            return;
         }
-    }
-}
 
-### ------------------- SIGN UP -------------------
-if ($formType === 'signup' && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['signup_submit'])) {
-    $fullname = trim($_POST['fullname'] ?? '');
-    $email    = trim($_POST['email'] ?? '');
-    $password = $_POST['password'] ?? '';
+        if (!$fn->validateEmail($email)) {
+            echo "<p style='color:red'>Invalid email address.</p>";
+            return;
+        }
 
-    $ObjFncs->signup_errors = [];
-    $ObjFncs->signup_msg    = '';
-
-    // Validate fullname
-    if ($fullname === '' || !preg_match("/^[a-zA-Z ]*$/", $fullname)) {
-        $ObjFncs->signup_errors['fullname'] = "Only letters and spaces allowed.";
-    }
-
-    // Validate email
-    if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        $ObjFncs->signup_errors['email'] = "Invalid email address.";
-    }
-
-    // Validate password length
-    if (strlen($password) < $conf['min_password_length']) {
-        $ObjFncs->signup_errors['password'] = "Password must be at least {$conf['min_password_length']} characters.";
-    }
-
-    // Check if email already exists
-    if (empty($ObjFncs->signup_errors)) {
-        $stmt = $pdo->prepare("SELECT id FROM users WHERE email = ?");
+        // Check for duplicate email
+        $stmt = $this->db->prepare("SELECT id FROM users WHERE email = ?");
         $stmt->execute([$email]);
         if ($stmt->fetch()) {
-            $ObjFncs->signup_errors['email'] = "Email already registered. Please sign in.";
+            echo "<p style='color:red'>Email already registered.</p>";
+            return;
+        }
+
+        $hash = $fn->hashPassword($password);
+
+        try {
+            $stmt = $this->db->prepare("INSERT INTO users (name, email, password, verified) VALUES (?, ?, ?, 0)");
+            $stmt->execute([$fullname, $email, $hash]);
+            echo "<p style='color:green'>Account created successfully. Please check your email.</p>";
+            // Send verification email here (see below)
+        } catch (\PDOException $e) {
+            echo "<p style='color:red'>Database error: " . $e->getMessage() . "</p>";
         }
     }
 
-    // Insert new user
-    if (empty($ObjFncs->signup_errors)) {
-        $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
-        $stmt = $pdo->prepare("INSERT INTO users (name, email, password) VALUES (?, ?, ?)");
-        if ($stmt->execute([$fullname, $email, $hashedPassword])) {
-            // Send verification email
-            $ObjSendMail = new SendMail();
-            $mailCnt = [
-                'name_from' => 'ICS B Academy',
-                'mail_from' => $conf['smtp_user'],
-                'name_to'   => $fullname,
-                'mail_to'   => $email,
-                'subject'   => 'Welcome! Verify Your Account',
-                'body'      => "<p>Hello {$fullname},</p>
-                                <p>Click to verify your account:</p>
-                                <p><a href='{$conf['site_url']}/verify.php?email=" . urlencode($email) . "'>Verify Account</a></p>"
-            ];
-            $mailSent = $ObjSendMail->Send_Mail($conf, $mailCnt);
+    /**
+     * Handle signin → starts 2FA process
+     */
+    public function signin(GlobalFunctions $fn, SendMail $mailer): void {
+        $email    = $fn->sanitizeInput($_POST['email'] ?? '');
+        $password = $_POST['password'] ?? '';
 
-            $ObjFncs->signup_msg = $mailSent
-                ? "Signup successful! Verification email sent."
-                : "Account created but verification email failed.";
-        } else {
-            $ObjFncs->signup_msg = "Error: Could not create account.";
+        if (empty($email) || empty($password)) {
+            $fn->setMsg('error', 'Email and password are required.', 'danger');
+            return;
         }
+
+        $stmt = $this->db->prepare("SELECT * FROM users WHERE email = ?");
+        $stmt->execute([$email]);
+        $user = $stmt->fetch();
+
+        if (!$user || !$fn->verifyPassword($password, $user['password'])) {
+            $fn->setMsg('error', 'Invalid email or password.', 'danger');
+            return;
+        }
+
+        // Clean up old codes
+        $this->db->prepare("DELETE FROM user_2fa WHERE user_id = ? AND expires_at < NOW()")->execute([$user['id']]);
+
+        // Generate 2FA code
+        $code = $fn->generateVerificationCode(6);
+
+        // Save code in DB (expires in 5 minutes)
+        $stmt = $this->db->prepare("INSERT INTO user_2fa (user_id, code, expires_at) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 5 MINUTE))");
+        $stmt->execute([$user['id'], $code]);
+
+        // Send email
+        $mailCnt = [
+            'mail_to'   => $user['email'],
+            'name_to'   => $user['name'],
+            'subject'   => 'Your ICS B 2FA Code',
+            'body'      => "<p>Hello {$user['name']},</p>
+                            <p>Your verification code is:</p>
+                            <h2>{$code}</h2>
+                            <p>This code will expire in 5 minutes.</p>"
+        ];
+        $mailSent = $mailer->send($this->conf, $mailCnt);
+
+        if (!$mailSent) {
+            $fn->setMsg('error', 'Failed to send 2FA code. Please contact support.', 'danger');
+            return;
+        }
+
+        // Store session for verification step
+        $_SESSION['pending_user_id'] = $user['id'];
+
+        // Redirect to 2FA verification
+        header("Location: verify_2fa.php");
+        exit;
+    }
+
+    /**
+     * Verify 2FA code and log in user
+     */
+    public function verify2FA(GlobalFunctions $fn, int $userId, string $code): bool {
+        $stmt = $this->db->prepare("SELECT * FROM user_2fa WHERE user_id = ? AND code = ? AND verified = 0 AND expires_at > NOW() ORDER BY id DESC LIMIT 1");
+        $stmt->execute([$userId, $code]);
+        $row = $stmt->fetch();
+
+        if ($row) {
+            // Mark code as used
+            $this->db->prepare("UPDATE user_2fa SET verified = 1 WHERE id = ?")->execute([$row['id']]);
+
+            //  Successful login
+            $_SESSION['user_id'] = $userId;
+            unset($_SESSION['pending_user_id']);
+            return true;
+        }
+
+        return false;
     }
 }
