@@ -1,18 +1,43 @@
-<form method="post" action="">
-  <div class="mb-3">
-    <label for="name">Full Name</label>
-    <input type="text" class="form-control" id="name" name="name" required>
-  </div>
+<?php
+declare(strict_types=1);
 
-  <div class="mb-3">
-    <label for="email">Email</label>
-    <input type="email" class="form-control" id="email" name="email" required>
-  </div>
+error_reporting(E_ALL);
+ini_set('display_errors', '1');
 
-  <div class="mb-3">
-    <label for="password">Password</label>
-    <input type="password" class="form-control" id="password" name="password" required>
-  </div>
+session_start();
 
-  <button type="submit" class="btn btn-primary" name="signup">Sign Up</button>
-</form>
+require_once __DIR__ . '/../config/conf.php';
+require_once __DIR__ . '/../vendor/autoload.php';
+
+use App\Layouts\Layouts;
+use App\Forms\Forms;
+use App\GlobalFunctions;
+use App\Mail\SendMail;
+use App\Auth\Auth;
+
+try {
+    // Initialize core objects
+    $ObjFncs     = new GlobalFunctions();
+    $ObjForm     = new Forms($pdo);
+    $ObjLayout   = new Layouts();
+    $ObjSendMail = new SendMail($conf);
+    $auth        = new Auth($pdo, $conf, $ObjSendMail);
+
+    // Show Signup form
+    $ObjFncs->showForm = 'signup';
+
+    // Handle Signup submission
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['signup'])) {
+        $auth->signup($ObjFncs);
+    }
+
+    // Render page layout
+    $ObjLayout->header($conf);
+    $ObjLayout->navbar($conf);
+    $ObjLayout->banner($conf);
+    $ObjLayout->form_content($conf, $ObjForm, $ObjFncs);
+    $ObjLayout->footer($conf);
+
+} catch (\Exception $e) {
+    echo "<div class='container my-5'><p class='text-danger'>Error: " . htmlspecialchars($e->getMessage()) . "</p></div>";
+}

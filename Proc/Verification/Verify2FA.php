@@ -1,6 +1,5 @@
 <?php
 declare(strict_types=1);
-
 session_start();
 
 require_once __DIR__ . '/../config/conf.php';
@@ -15,8 +14,17 @@ try {
     $ObjLayout->banner($conf);
 
     $msg   = '';
-    $email = trim($_GET['email'] ?? '');
-    $code  = trim($_GET['code'] ?? '');
+    $email = '';
+    $code  = '';
+
+    // Determine if verification comes from GET (link click) or POST (manual entry)
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verify'])) {
+        $email = trim($_POST['email'] ?? '');
+        $code  = trim($_POST['code'] ?? '');
+    } else {
+        $email = trim($_GET['email'] ?? '');
+        $code  = trim($_GET['code'] ?? '');
+    }
 
     if ($email && $code) {
         $stmt = $pdo->prepare("SELECT id, verified, verification_code FROM users WHERE email = ?");
@@ -34,14 +42,32 @@ try {
             $stmt->execute([$user['id']]);
             $msg = "<div class='alert alert-success'>Account verified successfully! You may now <a href='signin.php'>sign in</a>.</div>";
         }
-    } else {
-        $msg = "<div class='alert alert-info'>No verification data provided.</div>";
     }
 
     echo "<div class='container my-5'><h2>Account Verification</h2>{$msg}</div>";
 
+    // Always show manual verification form for convenience
+    echo <<<HTML
+    <div class='container my-3'>
+        <div class='card p-4' style='max-width:500px;margin:auto;'>
+            <h5>Enter your verification code manually</h5>
+            <form method='post'>
+                <div class='mb-3'>
+                    <label>Email</label>
+                    <input type='email' name='email' class='form-control' value='" . htmlspecialchars($email) . "' required>
+                </div>
+                <div class='mb-3'>
+                    <label>Verification Code</label>
+                    <input type='text' name='code' class='form-control' required>
+                </div>
+                <button type='submit' name='verify' class='btn btn-primary'>Verify</button>
+            </form>
+        </div>
+    </div>
+HTML;
+
     $ObjLayout->footer($conf);
 
 } catch (\Exception $e) {
-    echo "<div class='container my-5'><p style='color:red'>Error: " . htmlspecialchars($e->getMessage()) . "</p></div>";
+    echo "<div class='container my-5 text-danger'>Error: " . htmlspecialchars($e->getMessage()) . "</div>";
 }

@@ -1,19 +1,25 @@
 <?php
-class Forms {
+namespace App\Forms;
+
+class Forms
+{
     private \PDO $db;
 
-    public function __construct(\PDO $db) {
+    public function __construct(\PDO $db)
+    {
         $this->db = $db;
     }
 
-    public function signup(array $conf): void {
+    // Render Sign Up form
+    public function signup(): void
+    {
         ?>
         <div class="container my-5">
             <h2>Sign Up</h2>
             <form method="POST" action="" class="mt-3">
                 <div class="mb-3">
                     <label for="fullname" class="form-label">Fullname</label>
-                    <input type="text" name="fullname" id="fullname" class="form-control" placeholder="Enter your fullname" required>
+                    <input type="text" name="name" id="fullname" class="form-control" placeholder="Enter your fullname" required>
                 </div>
                 <div class="mb-3">
                     <label for="email" class="form-label">Email address</label>
@@ -29,7 +35,9 @@ class Forms {
         <?php
     }
 
-    public function signin(array $conf): void {
+    // Render Sign In form
+    public function signin(): void
+    {
         ?>
         <div class="container my-5">
             <h2>Sign In</h2>
@@ -46,5 +54,15 @@ class Forms {
             </form>
         </div>
         <?php
+    }
+
+    // Optional: decide which form to show
+    public function render(string $formType): void
+    {
+        if ($formType === 'signup') {
+            $this->signup();
+        } else {
+            $this->signin();
+        }
     }
 }

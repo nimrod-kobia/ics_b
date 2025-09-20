@@ -10,7 +10,7 @@ if (session_status() === PHP_SESSION_NONE) {
 $conf = [
     'site_timezone' => 'Africa/Nairobi',
     'site_name'     => 'ICS B Academy',
-    'site_url'      => 'http://localhost/tol',
+    'site_url' => 'http://localhost/ics_b-1',
     'admin_email'   => 'admin@icsbacademy.com',
     'site_lang'     => 'en',
 
@@ -26,7 +26,7 @@ $conf = [
     'smtp_host'   => 'smtp.gmail.com',
     'smtp_port'   => 587,     // 465 for SSL, 587 for TLS
     'smtp_user'   => getenv('SMTP_USER') ?: 'nimrodkobia066@gmail.com',
-    'smtp_pass'   => getenv('SMTP_PASS') ?: 'app_password_here',
+    'smtp_pass'   => getenv('SMTP_PASS') ?: 'yfon emhj jatk cmnh',
     'smtp_secure' => 'tls',   // 'ssl' or 'tls'
 
     // App Rules

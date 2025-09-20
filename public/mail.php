@@ -1,70 +1,83 @@
 <?php
-// public/mail.php
 declare(strict_types=1);
 
 error_reporting(E_ALL);
 ini_set('display_errors', '1');
 
+session_start();
+
 require_once __DIR__ . '/../config/conf.php';
 require_once __DIR__ . '/../vendor/autoload.php';
-require_once __DIR__ . '/../src/Global/SendMail.php';
-require_once __DIR__ . '/../src/Layouts/Layouts.php';
 
+use App\Mail\SendMail;
+use App\Layouts\Layouts;
+use App\GlobalFunctions;
+
+$ObjFncs   = new GlobalFunctions();
 $ObjLayout = new Layouts();
+
+// Render page layout
 $ObjLayout->header($conf);
 $ObjLayout->navbar($conf);
 $ObjLayout->banner($conf);
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mail_submit'])) {
-    $fullname = trim($_POST['fullname'] ?? '');
-    $email    = trim($_POST['email'] ?? '');
+try {
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mail_submit'])) {
+        $fullname = $ObjFncs->sanitizeInput($_POST['fullname'] ?? '');
+        $email    = $ObjFncs->sanitizeInput($_POST['email'] ?? '');
 
-    if ($fullname === '' || $email === '') {
-        echo "<p style='color:red'>Please provide both fullname and email.</p>";
-    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        echo "<p style='color:red'>Please provide a valid email address.</p>";
-    } else {
-        // Generate a verification token (safer than passing name)
+        if ($fullname === '' || $email === '') {
+            throw new \Exception('Please provide both fullname and email.');
+        }
+
+        if (!$ObjFncs->validateEmail($email)) {
+            throw new \Exception('Invalid email address.');
+        }
+
+        // Generate a secure token for verification
         $token = bin2hex(random_bytes(16));
-
-        // Example: store token + email in database here for later verification
-
         $verificationLink = $conf['site_url'] . '/verify_2fa.php?token=' . urlencode($token);
 
-        $mailCnt = [
-            'name_from' => $conf['app_name'] ?? 'ICS 2.2',
-            'mail_from' => $conf['smtp_user'],
-            'name_to'   => $fullname,
+        $mailContent = [
+            'name_from' => $conf['site_name'] ?? 'ICS 2.2',
             'mail_to'   => $email,
-            'subject'   => 'Welcome to ' . ($conf['app_name'] ?? 'ICS 2.2') . '! Account Verification',
-            'body'      => "
-                <p>Hello " . htmlspecialchars($fullname) . ",</p>
-                <p>Click the link below to verify your account:</p>
-                <p><a href='{$verificationLink}'>Verify Your Account</a></p>
-            "
+            'name_to'   => $fullname,
+            'subject'   => 'Account Verification',
+            'body'      => "<p>Hello {$fullname},</p>
+                            <p>Click <a href='{$verificationLink}'>here</a> to verify your account.</p>"
         ];
 
-        $ObjSendMail = new SendMail();
-        if ($ObjSendMail->send($conf, $mailCnt)) {
-            echo "<p style='color:green'>Verification email sent to <strong>" . htmlspecialchars($email) . "</strong>.</p>";
+        $ObjSendMail = new SendMail($conf);
+        if ($ObjSendMail->send($mailContent)) {
+            $ObjFncs->setMsg('msg', "Verification email sent to {$email}.", 'success');
         } else {
-            echo "<p style='color:red'>Failed to send verification email.</p>";
+            $ObjFncs->setMsg('msg', "Failed to send verification email.", 'danger');
         }
     }
+} catch (\Exception $e) {
+    $ObjFncs->setMsg('msg', $e->getMessage(), 'danger');
 }
+
+// Display the form and messages
 ?>
-
-<h2>Send Verification Email</h2>
-<form action="" method="post" autocomplete="off">
-    <div class="mb-3">
-        <label for="fullname" class="form-label">Fullname</label>
-        <input type="text" class="form-control" id="fullname" name="fullname" maxlength="50" required>
-    </div>
-    <div class="mb-3">
-        <label for="email" class="form-label">Email address</label>
-        <input type="email" class="form-control" id="email" name="email" required>
-    </div>
-    <button type="submit" class="btn btn-primary" name="mail_submit">Send Verification Email</button>
-</form>
-
-<?php $ObjLayout->footer($conf); ?>
+<div class="container my-5">
+    <?php
+    if ($msg = $ObjFncs->getMsg('msg')) {
+        echo "<div class='alert alert-{$msg['type']}'>{$msg['msg']}</div>";
+    }
+    ?>
+    <h2>Send Verification Email</h2>
+    <form method="POST" class="mt-3">
+        <div class="mb-3">
+            <label for="fullname" class="form-label">Full Name</label>
+            <input type="text" name="fullname" id="fullname" class="form-control" required>
+        </div>
+        <div class="mb-3">
+            <label for="email" class="form-label">Email Address</label>
+            <input type="email" name="email" id="email" class="form-control" required>
+        </div>
+        <button type="submit" name="mail_submit" class="btn btn-primary">Send Verification Email</button>
+    </form>
+</div>
+<?php
+$ObjLayout->footer($conf);
